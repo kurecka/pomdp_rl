@@ -18,11 +18,11 @@ class PPOMixedModel(CategoricalMixin, DeterministicMixin, Model):
         self.net = nn.Sequential(
             nn.Linear(self.num_observations, 64),
             nn.ReLU(),
-            nn.Linear(64, 32),
+            nn.Linear(64, 64),
             nn.ReLU(),
         )
-        self.net_value = nn.Linear(32, 1)
-        self.net_policy = nn.Linear(32, self.num_actions)
+        self.net_value = nn.Linear(64, 1)
+        self.net_policy = nn.Linear(64, self.num_actions)
 
     def compute(self, inputs, role):
         if role == "policy":
@@ -47,9 +47,9 @@ class PPOPolicy(CategoricalMixin, Model):
         self.net = nn.Sequential(
             nn.Linear(self.num_observations, 64),
             nn.ReLU(),
-            nn.Linear(64, 32),
+            nn.Linear(64, 64),
             nn.ReLU(),
-            nn.Linear(32, self.num_actions)
+            nn.Linear(64, self.num_actions)
         )
 
     def compute(self, inputs, role):
@@ -64,9 +64,9 @@ class PPOValue(DeterministicMixin, Model):
         self.net = nn.Sequential(
             nn.Linear(self.num_observations, 64),
             nn.ReLU(),
-            nn.Linear(64, 32),
+            nn.Linear(64, 64),
             nn.ReLU(),
-            nn.Linear(32, 1)
+            nn.Linear(64, 1)
         )
 
     def compute(self, inputs, role):
@@ -93,10 +93,10 @@ class PPOMixedModelLSTM(CategoricalMixin, DeterministicMixin, Model):
 
         self.net = nn.Sequential(nn.Linear(self.hidden_size, 64),
                                  nn.ReLU(),
-                                 nn.Linear(64, 32),
+                                 nn.Linear(64, 64),
                                  nn.ReLU(),)
-        self.net_policy = nn.Linear(32, self.num_actions)
-        self.net_value = nn.Linear(32, 1)
+        self.net_policy = nn.Linear(64, self.num_actions)
+        self.net_value = nn.Linear(64, 1)
     
     def act(self, inputs, role):
         if role == "policy":
@@ -166,8 +166,8 @@ def get_ppo_config(env, cfg_override=None):
     
     cfg = PPO_DEFAULT_CONFIG.copy()
     cfg["learning_epochs"] = 1
-    cfg["discount_factor"] = 0.9
-    cfg["lambda"] = 0.5
+    cfg["discount_factor"] = 0.99
+    cfg["lambda"] = 0.95
     cfg["learning_rate"] = 1e-3
     cfg["learning_rate_scheduler"] = KLAdaptiveRL
     cfg["learning_rate_scheduler_kwargs"] = {"kl_threshold": 0.008}
@@ -195,8 +195,8 @@ def get_ppo_config(env, cfg_override=None):
     return cfg
 
 
-def build_ppo_mixed_agent(env):
-    cfg = get_ppo_config(env)
+def build_ppo_mixed_agent(env, cfg_override=None):
+    cfg = get_ppo_config(env, cfg_override=cfg_override)
 
     memory = RandomMemory(memory_size=cfg['rollouts'], num_envs=env.num_envs, device=env.device)
 
@@ -213,8 +213,8 @@ def build_ppo_mixed_agent(env):
     )
 
 
-def build_ppo_agent(env):
-    cfg = get_ppo_config(env)
+def build_ppo_agent(env, cfg_override=None):
+    cfg = get_ppo_config(env, cfg_override=cfg_override)
 
     memory = RandomMemory(memory_size=cfg['rollouts'], num_envs=env.num_envs, device=env.device)
 

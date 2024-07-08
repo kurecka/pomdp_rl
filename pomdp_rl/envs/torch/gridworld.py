@@ -55,9 +55,15 @@ class GridWorld(gym.vector.VectorEnv):
         print(f"Done: {self.done[env_idx]}")
         print(f"Reward: {self.reward[env_idx]}")
 
-    def _compute_new_position(self, position, delta):
+    def _compute_new_position(self, position, delta, lbounds=None, ubounds=None):
         new_position = position + delta
-        return torch.clamp(new_position, torch.tensor([0, 0], dtype=torch.int32, device=self.device), self.dims - 1)
+
+        if lbounds is None:
+            lbounds = torch.zeros_like(new_position)
+        if ubounds is None:
+            ubounds = self.dims - 1
+
+        return torch.clamp(new_position, lbounds, ubounds)
 
     def _agent_move(self, action):
         slide = torch.rand(self.num_envs, device=self.device) < self.slide_prob
@@ -157,8 +163,12 @@ class Evade(GridWorldReachAvoid):
         self.radius = radius
         self.scanning = torch.zeros(num_envs, dtype=torch.bool, device=device)
 
+    def _trap_initial_pos(self):
+        return torch.tensor([[self.dims[0] - 2, self.dims[1] - 1]], device=self.device).repeat(self.num_envs, 1, 1)
 
-    def _random_move(self, positions):
+
+    def _trap_move(self):
+        positions = self.trap_pos
         moves = torch.tensor([
             [0, 1], [0, -1], [1, 0], [-1, 0],  # distance 1
             [0, 2], [0, -2], [2, 0], [-2, 0],  # distance 2 (straight)
@@ -167,10 +177,7 @@ class Evade(GridWorldReachAvoid):
         move_probs = torch.tensor([1/8] * 4 + [1/16] * 8, device=self.device)
         move_idx = torch.multinomial(move_probs, np.prod(positions.shape[:-1]), replacement=True).reshape(positions.shape[:-1])
         delta = moves[move_idx]
-        return self._compute_new_position(positions, delta)
-
-    def _trap_move(self):
-        return self._random_move(self.trap_pos)
+        return self._compute_new_position(positions, delta, lbounds=torch.tensor([0, 1], device=self.device))
 
     def _move(self, action):
         super()._move(action)

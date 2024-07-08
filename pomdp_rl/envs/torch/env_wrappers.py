@@ -55,6 +55,11 @@ class RewardMonitor(gym.Wrapper):
         obs, rewards, dones, trunc, infos = self.env.step(action)
         rewards = rewards - self.step_punishment * ~dones
         self.cumulative_rewards += rewards.view(-1)
+        if self.max_steps is not None:
+            trunc = (self.env_num_steps >= self.max_steps).reshape(dones.shape)
+            self.env_num_steps[trunc.flatten()] = 0
+            dones = dones | trunc
+            self.env.reset(trunc.view(-1))
 
         self.episodic_rewards.update(self.cumulative_rewards, dones.view(-1))
         self.terminal_rewards.update(rewards.view(-1), dones.view(-1))
@@ -68,11 +73,6 @@ class RewardMonitor(gym.Wrapper):
             print(f"Mean terminal reward: {self.terminal_rewards.get_mean()}")
         
         self.env_num_steps += 1
-        if self.max_steps is not None:
-            trunc = (self.env_num_steps >= self.max_steps).reshape(dones.shape)
-            self.env_num_steps[trunc.flatten()] = 0
-            dones = dones | trunc
-            self.env.reset(trunc.view(-1))
         self.env_num_steps[dones.flatten()] = 0
 
         return obs, rewards, dones, trunc, infos
