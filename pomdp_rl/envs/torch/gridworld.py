@@ -38,7 +38,7 @@ class GridWorld(gym.vector.VectorEnv):
         return self.agent_pos.to(torch.float32)
 
     def _get_info(self):
-        return None
+        return {}
 
     def reset(self, env_idx=...):
         self.agent_pos[env_idx] = self._agent_initial_pos()[env_idx]
