@@ -1,0 +1,11 @@
+# Ignore pycache and pytest cache
+**/__pycache__/
+**/.pytest_cache/
+
+# Ignore instalation files
+**/*.egg-info/
+**/dist/
+**/build/
+
+# Skrl logs and checkpoints
+runs
