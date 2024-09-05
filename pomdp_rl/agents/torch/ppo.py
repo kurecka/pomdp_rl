@@ -158,6 +158,15 @@ class PPOMixedModelLSTM(CategoricalMixin, DeterministicMixin, Model):
             return self.net_value(x), {"rnn": [rnn_states[0], rnn_states[1]]}
 
 
+def recursive_update(d, u):
+    for k, v in u.items():
+        if isinstance(v, dict):
+            d[k] = recursive_update(d[k], v)
+        else:
+            d[k] = v
+    return d
+
+
 def get_ppo_config(env, cfg_override=None):
     batch_size = 128
     mini_batches = 2
@@ -186,7 +195,7 @@ def get_ppo_config(env, cfg_override=None):
     cfg["mini_batches"] = rollouts * env.num_envs // batch_size
 
     if cfg_override is not None:
-        cfg.update(cfg_override)
+        cfg = recursive_update(cfg, cfg_override)
     
     print("PPO config:")
     for key, value in cfg.items():

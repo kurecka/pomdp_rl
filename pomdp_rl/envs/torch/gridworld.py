@@ -155,9 +155,9 @@ class GridWorldReachAvoid(GridWorld):
 
 
 class Evade(GridWorldReachAvoid):
-    def __init__(self, dims, radius=2, num_envs=1, render_mode=None, device='cpu', slide_prob=0, slide_scale=0):
+    def __init__(self, dims, radius=2, num_envs=1, render_mode=None, device='cpu', slide_prob=0, slide_scale=0, extra_actions=0):
         observation_space = spaces.Box(np.array([0, 0, -1, -1]), np.concatenate([dims, dims])-1, shape=(4,), dtype=int)
-        action_space = spaces.Discrete(5)
+        action_space = spaces.Discrete(5 + extra_actions)
         super(Evade, self).__init__(dims, observation_space, action_space, num_envs, render_mode, device, slide_prob, slide_scale)
 
         self.radius = radius
@@ -180,6 +180,7 @@ class Evade(GridWorldReachAvoid):
         return self._compute_new_position(positions, delta, lbounds=torch.tensor([0, 1], device=self.device))
 
     def _move(self, action):
+        action[action > 4] = 1
         super()._move(action)
         self.scanning[:] = action == 4
     
