@@ -207,7 +207,7 @@ class StormEnv(gym.Env):
         return observation, reward, self.done, False, self.state_info(next_state)
 
 class StormVecEnv(gym.vector.VectorEnv):
-    def __init__(self, sketch_path, reward_function, num_envs=10, properties_path=None, allow_wrong_actions=False):
+    def __init__(self, sketch_path, reward_function, num_envs=10, properties_path=None, allow_wrong_actions=False, max_steps=None):
         model = StormVecModel(sketch_path, properties_path)
         observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(model.num_observations,), dtype=np.float32)
         action_space = gym.spaces.Discrete(model.num_actions)
@@ -221,6 +221,8 @@ class StormVecEnv(gym.vector.VectorEnv):
         self.transition_log_probs.data = np.log(self.transition_log_probs.data)
 
         self.states = np.array([model.initial_state] * num_envs)
+        self.max_steps = max_steps
+        self.steps = np.zeros(num_envs, dtype=np.int32)
 
     def state_info(self, states):
         return {
@@ -230,9 +232,12 @@ class StormVecEnv(gym.vector.VectorEnv):
 
     def reset(self, seed=None, idx=...):
         self.states[idx] = self.model.initial_state
+        self.steps[idx] = 0
         return self.model.observation_table[self.states], self.state_info(self.states)
     
     def step(self, actions):
+        self.steps += 1
+        
         wrong_actions = ~self.model.allowed_actions[self.states, actions]
         wrong_states = self.states[wrong_actions]
         if np.any(wrong_actions) and not self.allow_wrong_actions:
@@ -251,6 +256,7 @@ class StormVecEnv(gym.vector.VectorEnv):
         goals = self.model.labels["goal"][next_states] 
         fail = 1 - self.model.labels["notbad"][next_states]
         dones = np.maximum(goals, fail) > 0.99
+        
 
         # Compute reward
         rewards_dict = {key: reward[self.states, actions] for key, reward in self.model.rewards.items()}
@@ -259,11 +265,18 @@ class StormVecEnv(gym.vector.VectorEnv):
         rewards = self.reward_function(rewards_dict)
 
         # Update states and observations
+        if self.max_steps is not None:
+            trunc = self.steps >= self.max_steps
+        else:
+            trunc = np.zeros_like(dones)
+
+        dones[trunc] = True
+        
         self.states[:] = next_states
         self.reset(idx=dones)
-        observations = self.model.observation_table[next_states]
+        observations = self.model.observation_table[self.states]
 
-        return observations, rewards, dones, np.zeros_like(dones), self.state_info(next_states)
+        return observations, rewards, dones, trunc, self.state_info(next_states)
 
 
 if __name__ == "__main__":

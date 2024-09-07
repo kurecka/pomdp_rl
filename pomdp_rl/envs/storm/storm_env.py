@@ -66,8 +66,8 @@ class StormEnv(gym.Env):
         self.flags = labels
 
         obs = observation_index2features(obs, self.quotient.pomdp)
-        trunc = False  
         done = self.is_done()
+        trunc = done and self.num_steps >= self.max_steps
 
         info = {} if done else {
             'action_mask': self._get_action_mask()
@@ -82,7 +82,7 @@ class StormEnv(gym.Env):
         obs, _, labels = self.simulator.restart()
         self.num_steps = 0
         self.current_obs = obs
-        self.flags = labels
+        #self.flags = labels
         obs = observation_index2features(obs, self.quotient.pomdp)
         info = {
             'action_mask': self._get_action_mask()
@@ -96,7 +96,8 @@ class StormEnv(gym.Env):
             n_act = self.stormpy_model.get_nr_available_actions(s_i)
             for a_i in range(n_act):
                 for label in self.stormpy_model.choice_labeling.get_labels_of_choice(self.stormpy_model.get_choice_index(s_i, a_i)):
-                    action_labels.add(label)
+                    if label != "__no_label__":
+                        action_labels.add(label)
         self.nr_actions = len(action_labels)
         self.index2label = list(sorted(action_labels))
         self.label2index = {
@@ -150,7 +151,7 @@ class ReachAvoidWrapper(gym.Wrapper):
         if done:
             if 'goal' in self.env.flags:
                 rew = self.reach_reward
-            elif 'unexplored' in self.env.flags:
+            elif 'unexplored' in self.env.flags or 'traps' in self.env.flags:
                 rew = self.fail_reward
         return obs, rew, done, trunc, info
 
