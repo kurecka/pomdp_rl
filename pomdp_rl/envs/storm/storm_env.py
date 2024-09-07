@@ -146,11 +146,12 @@ class ReachAvoidWrapper(gym.Wrapper):
     
     def step(self, action):
         obs, rew, done, trunc, info = self.env.step(action)
+        rew = 0
         if done:
             if 'goal' in self.env.flags:
-                rew += self.reach_reward
+                rew = self.reach_reward
             elif 'unexplored' in self.env.flags:
-                rew += self.fail_reward
+                rew = self.fail_reward
         return obs, rew, done, trunc, info
 
     def reset(self, seed=None, options=None):
